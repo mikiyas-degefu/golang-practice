@@ -67,12 +67,49 @@ func updateTask(c *gin.Context) {
 	}
 }
 
+func deleteTask(c *gin.Context) {
+	id := c.Param("id")
+
+	for i, val := range tasks {
+		if val.ID == id {
+			tasks = append(tasks[:i], tasks[i+1:]...)
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Task Removed",
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{
+		"message": "Task not found",
+	})
+}
+
+func addTask(c *gin.Context) {
+	var newTask Task
+
+	if err := c.ShouldBindJSON(&newTask); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	tasks = append(tasks, newTask)
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Task Created",
+	})
+}
+
 func main() {
 	router := gin.Default()
 
 	router.GET("/tasks", getTasks)
 	router.GET("/tasks/:id", getTaskByID)
 	router.PUT("/tasks/:id", updateTask)
+	router.DELETE("/tasks/:id", deleteTask)
+	router.POST("/tasks", addTask)
 
 	router.Run("localhost:8000")
 }
