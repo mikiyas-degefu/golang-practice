@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -12,6 +13,8 @@ type User struct {
 }
 
 var users = make(map[string]*User)
+
+var jwtSecret = []byte("mike")
 
 func main() {
 	router := gin.Default()
@@ -64,6 +67,41 @@ func main() {
 
 		ctx.JSON(200, gin.H{"message": "User registered successfully"})
 
+	})
+
+	router.POST("/login", func(ctx *gin.Context) {
+		var user User
+
+		if err := ctx.ShouldBindJSON(&user); err != nil {
+			ctx.JSON(400, gin.H{
+				"error": "Invalid request payload",
+			})
+
+			return
+		}
+
+		//login logic
+		existingUser, ok := users[user.Email]
+		if !ok || bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(user.Password)) != nil {
+			ctx.JSON(401, gin.H{
+				"error": "Invalid email or password",
+			})
+			return
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"user_id": existingUser.ID,
+			"email":   existingUser.Email,
+		})
+
+		jwtToken, err := token.SignedString(jwtSecret)
+
+		if err != nil {
+			ctx.JSON(500, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		ctx.JSON(200, gin.H{"message": "User logged in successfully", "token": jwtToken})
 	})
 
 	router.Run()
