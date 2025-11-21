@@ -4,76 +4,162 @@ import (
 	"net/http"
 	"strconv"
 	"task_manager_db/data"
+	"task_manager_db/middleware"
 	"task_manager_db/models"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetTasks handles GET /tasks
-func GetTasks(c *gin.Context) {
-	list := data.GetAll()
-	c.JSON(http.StatusOK, gin.H{"tasks": list})
-}
+// --- USER ENDPOINTS ---
 
-// GetTask handles GET /tasks/:id
-func GetTask(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+// POST /register
+func Register(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	task, err := data.GetByID(id)
+
+	user, err := data.CreateUser(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "user created",
+		"user":    user,
+	})
+}
+
+// POST /login
+func Login(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := data.AuthenticateUser(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := middleware.GenerateJWT(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+// PUT /promote/:id
+func PromoteUser(c *gin.Context) {
+	userIDParam := c.Param("id")
+	userID, err := strconv.Atoi(userIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	adminID := c.GetInt("userID")
+	if err := data.PromoteUser(adminID, userID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user promoted"})
+}
+
+// --- TASK ENDPOINTS ---
+
+// GET /tasks
+func GetAllTasks(c *gin.Context) {
+	tasks, err := data.GetAllTasks()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch tasks"})
+		return
+	}
+	c.JSON(http.StatusOK, tasks)
+}
+
+// GET /tasks/:id
+func GetTaskByID(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
+		return
+	}
+
+	task, err := data.GetTaskByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
 		return
 	}
+
 	c.JSON(http.StatusOK, task)
 }
 
-// CreateTask handles POST /tasks
+// POST /tasks
 func CreateTask(c *gin.Context) {
-	var payload models.Task
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	var req models.Task
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	created := data.Create(payload)
-	c.JSON(http.StatusCreated, created)
+
+	task, err := data.CreateTask(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create task"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, task)
 }
 
-// UpdateTask handles PUT /tasks/:id
+// PUT /tasks/:id
 func UpdateTask(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
 		return
 	}
-	var payload models.Task
-	if err := c.ShouldBindJSON(&payload); err != nil {
+
+	var req models.Task
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	updated, err := data.Update(id, payload)
+
+	task, err := data.UpdateTask(id, req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, updated)
+
+	c.JSON(http.StatusOK, task)
 }
 
-// DeleteTask handles DELETE /tasks/:id
+// DELETE /tasks/:id
 func DeleteTask(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
 		return
 	}
-	if err := data.Delete(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+
+	if err := data.DeleteTask(id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.Status(http.StatusNoContent)
+
+	c.JSON(http.StatusOK, gin.H{"message": "task deleted"})
 }

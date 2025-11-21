@@ -1,10 +1,11 @@
 package models
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"time"
 
-// Task represents a task in the system. Keep `id` as an int to remain backward compatible
-// with the previous JSON format. Mongo's native _id is stored in MongoID but omitted
-// from JSON output.
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
 type Task struct {
 	MongoID     primitive.ObjectID `bson:"_id,omitempty" json:"-"`
 	ID          int                `json:"id" bson:"id"`
@@ -12,4 +13,6 @@ type Task struct {
 	Description string             `json:"description,omitempty" bson:"description,omitempty"`
 	DueDate     string             `json:"due_date,omitempty" bson:"due_date,omitempty"`
 	Status      string             `json:"status" bson:"status" binding:"required"`
+	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updated_at"`
 }
