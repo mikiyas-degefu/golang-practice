@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"log"
-	"task_manager_db/data"
-	"task_manager_db/router"
+	"task_manager_db/Delivery/router"
+	data "task_manager_db/Repositories"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"

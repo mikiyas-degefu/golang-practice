@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 	"strings"
-	"task_manager_db/data"
-	"task_manager_db/models"
+	models "task_manager_db/Domain"
+	data "task_manager_db/Repositories"
 	"time"
 
 	"github.com/gin-gonic/gin"

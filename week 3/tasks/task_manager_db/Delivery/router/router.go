@@ -1,8 +1,8 @@
 package router
 
 import (
-	"task_manager_db/controllers"
-	"task_manager_db/middleware"
+	"task_manager_db/Delivery/controllers"
+	middleware "task_manager_db/Infrastructure"
 
 	"github.com/gin-gonic/gin"
 )

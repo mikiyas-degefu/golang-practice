@@ -3,9 +3,9 @@ package controllers
 import (
 	"net/http"
 	"strconv"
-	"task_manager_db/data"
-	"task_manager_db/middleware"
-	"task_manager_db/models"
+	models "task_manager_db/Domain"
+	middleware "task_manager_db/Infrastructure"
+	data "task_manager_db/Repositories"
 
 	"github.com/gin-gonic/gin"
 )
